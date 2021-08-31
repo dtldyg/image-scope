@@ -13,6 +13,63 @@ SCOPE_SIZE = (300, 300)
 SCOPE_RADIUS = int(SCOPE_SIZE[0] / 2)
 SCOPE_BAR = 20
 ANALYSE_POINTS = 5000
+SCALE_MAX = 6
+SCALE_STEP = 0.12
+
+
+class ImageLabel(QLabel):
+	def __init__(self, parent):
+		super(ImageLabel, self).__init__()
+		self.parent = parent
+		self.press_anchor = None
+
+	@property
+	def label_image(self):
+		return self.parent.label_image
+
+	@property
+	def image_image(self):
+		return self.parent.image_image
+
+	@property
+	def image_scale(self):
+		return self.parent.image_scale
+
+	@image_scale.setter
+	def image_scale(self, value):
+		self.parent.image_scale = value
+
+	# ↓↓ wheel event
+	def wheelEvent(self, event):
+		if self.image_scale == 0 or event.angleDelta().y() == 0:
+			return
+		if event.angleDelta().y() > 0:
+			self.image_scale = min_f(SCALE_MAX, self.image_scale + SCALE_STEP)
+		else:
+			self.image_scale = max_f(1, self.image_scale - SCALE_STEP)
+		new_size = (int(IMAGE_SIZE[0] * self.image_scale), int(IMAGE_SIZE[1] * self.image_scale))
+		self.label_image.setPixmap(QPixmap(self.image_image).scaled(*new_size, Qt.KeepAspectRatio))
+
+	# ↓↓ mouse click event
+	def mouseReleaseEvent(self, event):
+		if self.image_scale == 0:
+			return
+		if event.button() == Qt.LeftButton:
+			self.press_anchor = None
+		elif event.button() == Qt.RightButton:
+			self.image_scale = 1
+			new_size = (int(IMAGE_SIZE[0] * self.image_scale), int(IMAGE_SIZE[1] * self.image_scale))
+			self.label_image.setPixmap(QPixmap(self.image_image).scaled(*new_size, Qt.KeepAspectRatio))
+
+	# ↓↓ mouse press event
+	def mousePressEvent(self, event):
+		if self.image_scale == 0 or event.button() != Qt.LeftButton:
+			return
+		self.press_anchor = event.pos()
+
+	# ↓↓ mouse move event
+	def mouseMoveEvent(self, event):
+		pass
 
 
 class WindowWidget(QWidget):
@@ -20,6 +77,7 @@ class WindowWidget(QWidget):
 		super(WindowWidget, self).__init__()
 		self.label_image = None
 		self.image_image = None
+		self.image_scale = 0
 		self.label_scope1 = None  # 波形示波器
 		self.image_scope1 = None
 		self.label_scope2 = None  # 矢量示波器
@@ -33,19 +91,18 @@ class WindowWidget(QWidget):
 		self.init_scopes()
 
 		self.image_image = QImage('res/empty.jpg')
-		self.label_image = QLabel()
+		self.label_image = ImageLabel(self)
 		self.label_image.setFixedSize(*IMAGE_SIZE)
-		self.label_image.setScaledContents(True)
+		self.label_image.setAlignment(Qt.AlignCenter)
+		self.label_image.setStyleSheet('border: 1px solid #cccccc')
 		self.label_image.setPixmap(QPixmap(self.image_image))
 
 		self.label_scope1 = QLabel()
 		self.label_scope1.setFixedSize(*SCOPE_SIZE)
-		self.label_scope1.setScaledContents(True)
 		self.label_scope1.setPixmap(QPixmap(self.image_scope1))
 
 		self.label_scope2 = QLabel()
 		self.label_scope2.setFixedSize(*SCOPE_SIZE)
-		self.label_scope2.setScaledContents(True)
 		self.label_scope2.setPixmap(QPixmap(self.image_scope2))
 
 		layout = QVBoxLayout()
@@ -60,11 +117,8 @@ class WindowWidget(QWidget):
 		self.setWindowTitle(WINDOW_TITLE)
 
 	def init_scopes(self):
-		self.image_scope1 = QImage('res/scope.jpg')
-		draw_cross_line(self.image_scope1)
-		draw_h_bar(*SCOPE_SIZE, SCOPE_BAR, self.image_scope1)
-		self.image_scope2 = QImage('res/scope.jpg')
-		draw_cross_line(self.image_scope2)
+		self.image_scope1 = QImage('res/scope1.jpg')
+		self.image_scope2 = QImage('res/scope2.jpg')
 
 	# ↓↓ reg shortcut
 	def reg_shortcut(self):
@@ -139,7 +193,8 @@ class WindowWidget(QWidget):
 			color.setHslF(color.hslHueF(), color.hslSaturationF(), 0.5)
 			self.image_scope2.setPixelColor(pos[0] + SCOPE_RADIUS, pos[1] + SCOPE_RADIUS, color)
 
-		self.label_image.setPixmap(QPixmap(self.image_image))
+		self.image_scale = 1
+		self.label_image.setPixmap(QPixmap(self.image_image).scaled(*IMAGE_SIZE, Qt.KeepAspectRatio))
 		self.label_scope1.setPixmap(QPixmap(self.image_scope1))
 		self.label_scope2.setPixmap(QPixmap(self.image_scope2))
 
@@ -154,24 +209,23 @@ def hs_2_xy(r, h_f, s_f):
 	return -round(mod * math.sin(radian)), -round(mod * math.cos(radian))
 
 
-def draw_cross_line(scope):
-	for x1 in range(0, scope.width(), 3):
-		scope.setPixelColor(x1, int(scope.height() / 2), QColor(50, 50, 50))
-	for y1 in range(0, scope.height(), 3):
-		scope.setPixelColor(int(scope.width() / 2), y1, QColor(50, 50, 50))
+def max_f(a, b):
+	if a > b:
+		return a
+	else:
+		return b
 
 
-def draw_h_bar(w, h, b, scope):
-	h -= b
-	for x in range(0, w):
-		for y in range(0, b):
-			c = QColor()
-			c.setHslF(x / w, 0.8, (b - y) * 0.35 / b + 0.05)
-			scope.setPixelColor(x, y + h, c)
+def min_f(a, b):
+	if a < b:
+		return a
+	else:
+		return b
 
 
 if __name__ == '__main__':
 	app = QApplication(sys.argv)
 	window = WindowWidget()
 	window.show()
+	window.load_image('res/image2.jpg')
 	sys.exit(app.exec_())
