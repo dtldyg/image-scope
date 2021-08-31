@@ -17,67 +17,12 @@ SCALE_MAX = 6
 SCALE_STEP = 0.12
 
 
-class ImageLabel(QLabel):
-	def __init__(self, parent):
-		super(ImageLabel, self).__init__()
-		self.parent = parent
-		self.press_anchor = None
-
-	@property
-	def label_image(self):
-		return self.parent.label_image
-
-	@property
-	def image_image(self):
-		return self.parent.image_image
-
-	@property
-	def image_scale(self):
-		return self.parent.image_scale
-
-	@image_scale.setter
-	def image_scale(self, value):
-		self.parent.image_scale = value
-
-	# ↓↓ wheel event
-	def wheelEvent(self, event):
-		if self.image_scale == 0 or event.angleDelta().y() == 0:
-			return
-		if event.angleDelta().y() > 0:
-			self.image_scale = min_f(SCALE_MAX, self.image_scale + SCALE_STEP)
-		else:
-			self.image_scale = max_f(1, self.image_scale - SCALE_STEP)
-		new_size = (int(IMAGE_SIZE[0] * self.image_scale), int(IMAGE_SIZE[1] * self.image_scale))
-		self.label_image.setPixmap(QPixmap(self.image_image).scaled(*new_size, Qt.KeepAspectRatio))
-
-	# ↓↓ mouse click event
-	def mouseReleaseEvent(self, event):
-		if self.image_scale == 0:
-			return
-		if event.button() == Qt.LeftButton:
-			self.press_anchor = None
-		elif event.button() == Qt.RightButton:
-			self.image_scale = 1
-			new_size = (int(IMAGE_SIZE[0] * self.image_scale), int(IMAGE_SIZE[1] * self.image_scale))
-			self.label_image.setPixmap(QPixmap(self.image_image).scaled(*new_size, Qt.KeepAspectRatio))
-
-	# ↓↓ mouse press event
-	def mousePressEvent(self, event):
-		if self.image_scale == 0 or event.button() != Qt.LeftButton:
-			return
-		self.press_anchor = event.pos()
-
-	# ↓↓ mouse move event
-	def mouseMoveEvent(self, event):
-		pass
-
-
 class WindowWidget(QWidget):
 	def __init__(self):
 		super(WindowWidget, self).__init__()
 		self.label_image = None
 		self.image_image = None
-		self.image_scale = 0
+		self.image_set = False
 		self.label_scope1 = None  # 波形示波器
 		self.image_scope1 = None
 		self.label_scope2 = None  # 矢量示波器
@@ -91,7 +36,7 @@ class WindowWidget(QWidget):
 		self.init_scopes()
 
 		self.image_image = QImage('res/empty.jpg')
-		self.label_image = ImageLabel(self)
+		self.label_image = QLabel(self)
 		self.label_image.setFixedSize(*IMAGE_SIZE)
 		self.label_image.setAlignment(Qt.AlignCenter)
 		self.label_image.setStyleSheet('border: 1px solid #cccccc')
@@ -126,6 +71,8 @@ class WindowWidget(QWidget):
 		shortcut_open.activated.connect(self.on_open)
 		shortcut_paste = QShortcut(QKeySequence("Ctrl+V"), self)
 		shortcut_paste.activated.connect(self.paste_image)
+		shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
+		shortcut_save.activated.connect(self.save_window)
 
 	# ↓↓ drop event
 	def dragEnterEvent(self, event):
@@ -142,7 +89,7 @@ class WindowWidget(QWidget):
 	# ↓↓ open event
 	@pyqtSlot()
 	def on_open(self):
-		file = QFileDialog.getOpenFileName(self, '打开文件', '.', '*.jpg;*.png;*.jpeg;*.bmp')
+		file = QFileDialog.getOpenFileName(self, '打开图像文件', '.', '*.jpg;*.png;*.jpeg;*.bmp')
 		if file[0]:
 			self.load_image(file[0])
 
@@ -153,6 +100,16 @@ class WindowWidget(QWidget):
 		if not image.isNull():
 			self.image_image = image
 			self.refresh_image()
+
+	# ↓↓ save event
+	@pyqtSlot()
+	def save_window(self):
+		if not self.image_set:
+			return
+		screen = QApplication.primaryScreen()
+		screenshot = screen.grabWindow(self.winId())
+		file = QFileDialog.getSaveFileName(self, '保存示波器图片', '.', '*.jpg')
+		screenshot.save(QFile(file[0]))
 
 	# ↓↓ new image
 	def load_image(self, path):
@@ -193,7 +150,7 @@ class WindowWidget(QWidget):
 			color.setHslF(color.hslHueF(), color.hslSaturationF(), 0.5)
 			self.image_scope2.setPixelColor(pos[0] + SCOPE_RADIUS, pos[1] + SCOPE_RADIUS, color)
 
-		self.image_scale = 1
+		self.image_set = True
 		self.label_image.setPixmap(QPixmap(self.image_image).scaled(*IMAGE_SIZE, Qt.KeepAspectRatio))
 		self.label_scope1.setPixmap(QPixmap(self.image_scope1))
 		self.label_scope2.setPixmap(QPixmap(self.image_scope2))
@@ -209,23 +166,8 @@ def hs_2_xy(r, h_f, s_f):
 	return -round(mod * math.sin(radian)), -round(mod * math.cos(radian))
 
 
-def max_f(a, b):
-	if a > b:
-		return a
-	else:
-		return b
-
-
-def min_f(a, b):
-	if a < b:
-		return a
-	else:
-		return b
-
-
 if __name__ == '__main__':
 	app = QApplication(sys.argv)
 	window = WindowWidget()
 	window.show()
-	window.load_image('res/image2.jpg')
 	sys.exit(app.exec_())
