@@ -4,9 +4,9 @@ import os
 import sys
 import math
 import time
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+from PyQt5.QtCore import QStandardPaths, QSettings, QFile, pyqtSlot, Qt
+from PyQt5.QtGui import QImage, QPixmap, QIcon, QKeySequence, QColor
+from PyQt5.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QShortcut, QFileDialog, QApplication
 
 WINDOW_TITLE = 'Image Scope'
 WINDOW_SIZE = (634, 640)
