@@ -8,7 +8,7 @@ from PyQt5.QtCore import QStandardPaths, QSettings, QFile, pyqtSlot, Qt
 from PyQt5.QtGui import QImage, QPixmap, QIcon, QKeySequence, QColor
 from PyQt5.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QShortcut, QFileDialog, QApplication
 
-WINDOW_TITLE = 'Image Scope'
+WINDOW_TITLE = '图像示波器'
 WINDOW_SIZE = (634, 640)
 IMAGE_SIZE = (610, 300)
 IMAGE_HEIGHT_MAX = 610
@@ -40,11 +40,11 @@ class WindowWidget(QWidget):
 	def init_ui(self):
 		self.init_scopes()
 
-		self.image_image = QImage('res/empty.jpg')
+		self.image_image = QImage(res_path('res/empty.jpg'))
 		self.label_image = QLabel(self)
 		self.label_image.setFixedSize(*IMAGE_SIZE)
 		self.label_image.setAlignment(Qt.AlignCenter)
-		self.label_image.setStyleSheet('border: 1px solid #cccccc')
+		self.label_image.setStyleSheet('border: 1px solid #dddddd')
 		self.label_image.setPixmap(QPixmap(self.image_image))
 
 		self.label_scope1 = QLabel()
@@ -65,11 +65,11 @@ class WindowWidget(QWidget):
 		self.setLayout(layout)
 		self.setFixedSize(*WINDOW_SIZE)
 		self.setWindowTitle(WINDOW_TITLE)
-		self.setWindowIcon(QIcon('res/icon.jpg'))
+		self.setWindowIcon(QIcon(res_path('res/icon.ico')))
 
 	def init_scopes(self):
-		self.image_scope1 = QImage('res/scope1.jpg')
-		self.image_scope2 = QImage('res/scope2.jpg')
+		self.image_scope1 = QImage(res_path('res/scope1.jpg'))
+		self.image_scope2 = QImage(res_path('res/scope2.jpg'))
 
 	# ↓↓ reg shortcut
 	def reg_shortcut(self):
@@ -82,7 +82,8 @@ class WindowWidget(QWidget):
 
 	# ↓↓ init setting
 	def init_setting(self):
-		setting_path = QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation) + '/image-scope/setting.ini'
+		local_dir = os.path.dirname(QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation))
+		setting_path = local_dir + '/image-scope/setting.ini'
 		self.settings = QSettings(setting_path, QSettings.IniFormat)
 
 	# ↓↓ drop event
@@ -185,6 +186,13 @@ def hs_2_xy(r, h_f, s_f):
 	radian = 2 * math.pi * h_f
 	mod = r * s_f
 	return -round(mod * math.sin(radian)), -round(mod * math.cos(radian))
+
+
+def res_path(path):
+	if hasattr(sys, '_MEIPASS'):
+		return getattr(sys, '_MEIPASS') + '/' + path
+	else:
+		return path
 
 
 if __name__ == '__main__':
