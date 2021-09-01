@@ -15,7 +15,7 @@ IMAGE_HEIGHT_MAX = 610
 SCOPE_SIZE = (300, 300)
 SCOPE_RADIUS = int(SCOPE_SIZE[0] / 2)
 SCOPE_BAR = 20
-ANALYSE_POINTS = 5000
+ANALYSE_POINTS = 10000
 SCALE_MAX = 6
 SCALE_STEP = 0.12
 
@@ -144,26 +144,25 @@ class WindowWidget(QWidget):
 		for x in range(0, self.image_image.width(), jump):
 			for y in range(0, self.image_image.height(), jump):
 				color: QColor = self.image_image.pixelColor(x, y)
-				x_hl, y_hl = hl_2_xy(hl_w, hl_h, color.hslHueF(), color.lightnessF())
-				x_hs, y_hs = hs_2_xy(SCOPE_RADIUS, color.hslHueF(), color.hslSaturationF())
+				h_f, s_f, l_f = color.hueF(), color.saturationF(), color.lightnessF()
+				x_hl, y_hl = hl_2_xy(hl_w, hl_h, h_f, l_f)
+				x_hs, y_hs = hs_2_xy(SCOPE_RADIUS, h_f, s_f)
 				if (x_hl, y_hl) not in hl_points:
-					c = QColor()
-					c.setHslF(color.hslHueF(), color.hslSaturationF(), color.lightnessF())
-					hl_points[(x_hl, y_hl)] = c
+					hl_points[(x_hl, y_hl)] = color
 				if (x_hs, y_hs) not in hs_points:
-					c = QColor()
-					c.setHslF(color.hslHueF(), color.hslSaturationF(), color.lightnessF())
-					hs_points[(x_hs, y_hs)] = c
+					hs_points[(x_hs, y_hs)] = color
 
 		# 波形示波器（x-色相，y-亮度）
 		for pos, color in hl_points.items():
-			color.setHslF(color.hslHueF(), 0.5, color.lightnessF() * 0.8 + 0.2)
-			self.image_scope1.setPixelColor(pos[0], hl_h - pos[1], color)
+			c = QColor()
+			c.setHsv(color.hsvHue(), 128, int(color.value() * 0.8 + 50))
+			self.image_scope1.setPixelColor(pos[0], hl_h - pos[1], c)
 
 		# 矢量示波器
 		for pos, color in hs_points.items():
-			color.setHslF(color.hslHueF(), color.hslSaturationF(), 0.5)
-			self.image_scope2.setPixelColor(pos[0] + SCOPE_RADIUS, pos[1] + SCOPE_RADIUS, color)
+			c = QColor()
+			c.setHsv(color.hsvHue(), color.hsvSaturation(), 255)
+			self.image_scope2.setPixelColor(pos[0] + SCOPE_RADIUS, pos[1] + SCOPE_RADIUS, c)
 
 		self.image_set = True
 		self.resize_window()
@@ -183,7 +182,8 @@ def hl_2_xy(w, h, h_f, l_f):
 
 
 def hs_2_xy(r, h_f, s_f):
-	radian = 2 * math.pi * h_f
+	# to match with DaVinci vector-scope, make a little rotation
+	radian = 2 * math.pi * h_f + math.pi * 0.1
 	mod = r * s_f
 	return -round(mod * math.sin(radian)), -round(mod * math.cos(radian))
 
