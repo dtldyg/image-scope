@@ -44,15 +44,17 @@ class WindowWidget(QWidget):
 		self.label_image = QLabel(self)
 		self.label_image.setFixedSize(*IMAGE_SIZE)
 		self.label_image.setAlignment(Qt.AlignCenter)
-		self.label_image.setStyleSheet('border: 1px solid #dddddd')
+		self.label_image.setStyleSheet('border: 1px solid #606060')
 		self.label_image.setPixmap(QPixmap(self.image_image))
 
 		self.label_scope1 = QLabel()
 		self.label_scope1.setFixedSize(*SCOPE_SIZE)
+		self.label_scope1.setStyleSheet('border: 1px solid #606060')
 		self.label_scope1.setPixmap(QPixmap(self.image_scope1))
 
 		self.label_scope2 = QLabel()
 		self.label_scope2.setFixedSize(*SCOPE_SIZE)
+		self.label_scope2.setStyleSheet('border: 1px solid #606060')
 		self.label_scope2.setPixmap(QPixmap(self.image_scope2))
 
 		layout = QVBoxLayout()
@@ -65,7 +67,8 @@ class WindowWidget(QWidget):
 		self.setLayout(layout)
 		self.setFixedSize(*WINDOW_SIZE)
 		self.setWindowTitle(WINDOW_TITLE)
-		self.setWindowIcon(QIcon(res_path('res/icon.ico')))
+		self.setStyleSheet('background-color: #303030')
+		self.setWindowIcon(QIcon(res_path('res/ico.ico')))
 
 	def init_scopes(self):
 		self.image_scope1 = QImage(res_path('res/scope1.jpg'))
@@ -155,7 +158,7 @@ class WindowWidget(QWidget):
 		# 波形示波器（x-色相，y-亮度）
 		for pos, color in hl_points.items():
 			c = QColor()
-			c.setHsv(color.hsvHue(), 128, int(color.value() * 0.8 + 50))
+			c.setHsl(color.hslHue(), 200, int(color.lightness() * 0.9 + 24))
 			self.image_scope1.setPixelColor(pos[0], hl_h - pos[1], c)
 
 		# 矢量示波器
@@ -183,7 +186,7 @@ def hl_2_xy(w, h, h_f, l_f):
 
 def hs_2_xy(r, h_f, s_f):
 	# to match with DaVinci vector-scope, make a little rotation
-	radian = 2 * math.pi * h_f + math.pi * 0.1
+	radian = 2 * math.pi * h_f + math.pi * 0.12
 	mod = r * s_f
 	return -round(mod * math.sin(radian)), -round(mod * math.cos(radian))
 
