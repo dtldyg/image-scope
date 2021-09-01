@@ -8,7 +8,7 @@ from PyQt5.QtCore import QStandardPaths, QSettings, QFile, pyqtSlot, Qt
 from PyQt5.QtGui import QImage, QPixmap, QIcon, QKeySequence, QColor
 from PyQt5.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QShortcut, QFileDialog, QApplication
 
-WINDOW_TITLE = '图像示波器'
+WINDOW_TITLE = '图像-色彩分析器'
 WINDOW_SIZE = (634, 640)
 IMAGE_SIZE = (610, 300)
 IMAGE_HEIGHT_MAX = 610
@@ -104,8 +104,10 @@ class WindowWidget(QWidget):
 	# ↓↓ open event
 	@pyqtSlot()
 	def on_open(self):
-		file = QFileDialog.getOpenFileName(self, '打开图像文件', '.', '*.jpg;*.png;*.jpeg;*.bmp')
+		last_path = self.settings.value('open_path', '.')
+		file = QFileDialog.getOpenFileName(self, '打开图像文件', last_path, '*.jpg;*.png;*.jpeg;*.bmp')
 		if file[0]:
+			self.settings.setValue('open_path', os.path.dirname(file[0]))
 			self.load_image(file[0])
 
 	# ↓↓ paste event
