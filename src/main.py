@@ -1,7 +1,9 @@
 # coding=utf-8
 
+import os
 import sys
 import math
+import time
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -9,6 +11,7 @@ from PyQt5.QtWidgets import *
 WINDOW_TITLE = 'Image Scope'
 WINDOW_SIZE = (634, 640)
 IMAGE_SIZE = (610, 300)
+IMAGE_HEIGHT_MAX = 610
 SCOPE_SIZE = (300, 300)
 SCOPE_RADIUS = int(SCOPE_SIZE[0] / 2)
 SCOPE_BAR = 20
@@ -27,9 +30,11 @@ class WindowWidget(QWidget):
 		self.image_scope1 = None
 		self.label_scope2 = None  # 矢量示波器
 		self.image_scope2 = None
+		self.settings = None
 		self.setAcceptDrops(True)
 		self.init_ui()
 		self.reg_shortcut()
+		self.init_setting()
 
 	# ↓↓ init layout & widget
 	def init_ui(self):
@@ -60,6 +65,7 @@ class WindowWidget(QWidget):
 		self.setLayout(layout)
 		self.setFixedSize(*WINDOW_SIZE)
 		self.setWindowTitle(WINDOW_TITLE)
+		self.setWindowIcon(QIcon('res/icon.jpg'))
 
 	def init_scopes(self):
 		self.image_scope1 = QImage('res/scope1.jpg')
@@ -73,6 +79,11 @@ class WindowWidget(QWidget):
 		shortcut_paste.activated.connect(self.paste_image)
 		shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
 		shortcut_save.activated.connect(self.save_window)
+
+	# ↓↓ init setting
+	def init_setting(self):
+		setting_path = QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation) + '/image-scope/setting.ini'
+		self.settings = QSettings(setting_path, QSettings.IniFormat)
 
 	# ↓↓ drop event
 	def dragEnterEvent(self, event):
@@ -108,7 +119,10 @@ class WindowWidget(QWidget):
 			return
 		screen = QApplication.primaryScreen()
 		screenshot = screen.grabWindow(self.winId())
-		file = QFileDialog.getSaveFileName(self, '保存示波器图片', '.', '*.jpg')
+		last_path = self.settings.value('save_path', '.')
+		default_name = 'image-scope_' + time.strftime('%Y%m%d%H%M%S', time.localtime()) + '.jpg'
+		file = QFileDialog.getSaveFileName(self, '保存示波器图片', last_path + '/' + default_name, '*.jpg')
+		self.settings.setValue('save_path', os.path.dirname(file[0]))
 		screenshot.save(QFile(file[0]))
 
 	# ↓↓ new image
@@ -142,7 +156,7 @@ class WindowWidget(QWidget):
 
 		# 波形示波器（x-色相，y-亮度）
 		for pos, color in hl_points.items():
-			color.setHslF(color.hslHueF(), 0.5, color.lightnessF() * 0.9 + 0.1)
+			color.setHslF(color.hslHueF(), 0.5, color.lightnessF() * 0.8 + 0.2)
 			self.image_scope1.setPixelColor(pos[0], hl_h - pos[1], color)
 
 		# 矢量示波器
@@ -151,9 +165,16 @@ class WindowWidget(QWidget):
 			self.image_scope2.setPixelColor(pos[0] + SCOPE_RADIUS, pos[1] + SCOPE_RADIUS, color)
 
 		self.image_set = True
-		self.label_image.setPixmap(QPixmap(self.image_image).scaled(*IMAGE_SIZE, Qt.KeepAspectRatio))
+		self.resize_window()
+		self.label_image.setPixmap(QPixmap(self.image_image).scaled(IMAGE_SIZE[0], self.label_image.height(), Qt.KeepAspectRatio))
 		self.label_scope1.setPixmap(QPixmap(self.image_scope1))
 		self.label_scope2.setPixmap(QPixmap(self.image_scope2))
+
+	def resize_window(self):
+		image_h = int(IMAGE_SIZE[0] / self.image_image.width() * self.image_image.height())
+		image_h = min(IMAGE_HEIGHT_MAX, image_h)
+		self.setFixedSize(WINDOW_SIZE[0], image_h - IMAGE_SIZE[1] + WINDOW_SIZE[1])
+		self.label_image.setFixedSize(IMAGE_SIZE[0], image_h)
 
 
 def hl_2_xy(w, h, h_f, l_f):
