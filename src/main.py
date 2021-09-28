@@ -57,48 +57,17 @@ class WindowWidget(QWidget):
 		self.label_image.setStyleSheet('border: 1px solid #606060')
 		self.label_image.setPixmap(QPixmap(self.image_image))
 
+		# scope
 		self.label_scope1 = QLabel(self)
 		self.label_scope1.setFixedSize(*SCOPE_SIZE)
 		self.label_scope1.setStyleSheet('border: 1px solid #606060')
 		self.label_scope1.setPixmap(QPixmap(self.image_scope1))
-
 		self.label_scope2 = QLabel(self)
 		self.label_scope2.setFixedSize(*SCOPE_SIZE)
 		self.label_scope2.setStyleSheet('border: 1px solid #606060')
 		self.label_scope2.setPixmap(QPixmap(self.image_scope2))
-
-		# scope 1
-		widget_1 = QWidget(self)
-		widget_1.setAttribute(Qt.WA_TranslucentBackground)
-		self.info_scope1 = QLabel(widget_1)
-		self.info_scope1.setFixedSize(*INFO_SIZE)
-		self.info_scope1.move(1, 1)
-		self.info_scope1.setStyleSheet('background-color: #202020; font-family: arial; font-size: 10; color: #909090')
-		self.point_scope1 = QLabel(widget_1)
-		self.point_scope1.setFixedSize(POINT_RADIUS * 2, POINT_RADIUS * 2)
-		self.point_scope1.setAttribute(Qt.WA_TranslucentBackground)
-		self.point_scope1.setPixmap(QPixmap(QImage(res_path('res/point.png'))))
-		self.stack_scope1 = QStackedLayout()
-		self.stack_scope1.addWidget(self.label_scope1)
-		self.stack_scope1.addWidget(widget_1)
-		self.stack_scope1.setCurrentIndex(0)
-		self.stack_scope1.setStackingMode(QStackedLayout.StackAll)
-		# scope 2
-		widget_2 = QWidget(self)
-		widget_2.setAttribute(Qt.WA_TranslucentBackground)
-		self.info_scope2 = QLabel(widget_2)
-		self.info_scope2.setFixedSize(*INFO_SIZE)
-		self.info_scope2.move(1, 1)
-		self.info_scope2.setStyleSheet('background-color: #202020; font-family: arial; font-size: 10; color: #909090')
-		self.point_scope2 = QLabel(widget_2)
-		self.point_scope2.setFixedSize(POINT_RADIUS * 2, POINT_RADIUS * 2)
-		self.point_scope2.setAttribute(Qt.WA_TranslucentBackground)
-		self.point_scope2.setPixmap(QPixmap(QImage(res_path('res/point.png'))))
-		self.stack_scope2 = QStackedLayout()
-		self.stack_scope2.addWidget(self.label_scope2)
-		self.stack_scope2.addWidget(widget_2)
-		self.stack_scope2.setCurrentIndex(0)
-		self.stack_scope2.setStackingMode(QStackedLayout.StackAll)
+		self.info_scope1, self.point_scope1, self.stack_scope1 = self.init_info(self.label_scope1)
+		self.info_scope2, self.point_scope2, self.stack_scope2 = self.init_info(self.label_scope2)
 
 		# layout
 		layout = QVBoxLayout()
@@ -113,6 +82,24 @@ class WindowWidget(QWidget):
 		self.setWindowTitle(WINDOW_TITLE)
 		self.setStyleSheet('background-color: #303030')
 		self.setWindowIcon(QIcon(res_path('res/ico.ico')))
+
+	def init_info(self, label_scope):
+		widget = QWidget(self)
+		widget.setAttribute(Qt.WA_TranslucentBackground)
+		info_scope = QLabel(widget)
+		info_scope.setFixedSize(*INFO_SIZE)
+		info_scope.move(1, 1)
+		info_scope.setStyleSheet('background-color: #202020; font-family: arial; font-size: 10; color: #909090')
+		point_scope = QLabel(widget)
+		point_scope.setFixedSize(POINT_RADIUS * 2, POINT_RADIUS * 2)
+		point_scope.setAttribute(Qt.WA_TranslucentBackground)
+		point_scope.setPixmap(QPixmap(QImage(res_path('res/point.png'))))
+		stack_scope = QStackedLayout()
+		stack_scope.addWidget(label_scope)
+		stack_scope.addWidget(widget)
+		stack_scope.setCurrentIndex(0)
+		stack_scope.setStackingMode(QStackedLayout.StackAll)
+		return info_scope, point_scope, stack_scope
 
 	def init_scopes(self):
 		self.image_scope1 = QImage(res_path('res/scope1.jpg'))
@@ -171,7 +158,7 @@ class WindowWidget(QWidget):
 			return
 		color: QColor = self.pixmap.toImage().pixelColor(x, y)
 		r_v, g_v, b_v = color.red(), color.green(), color.blue()
-		h_v, s_v, l_v = color.hslHue(), color.hslSaturation(), color.lightness()
+		h_v, s_v, l_v = color.hue(), color.saturation(), color.lightness()
 		self.info_scope1.setText(' rgb: [{},{},{}]'.format(r_v, g_v, b_v))
 		self.info_scope2.setText(' hsl: [{},{},{}]'.format(h_v, s_v, l_v))
 		h_f, s_f, l_f = color.hueF(), color.saturationF(), color.lightnessF()
