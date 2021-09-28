@@ -6,12 +6,14 @@ import math
 import time
 from PyQt5.QtCore import QStandardPaths, QSettings, QFile, pyqtSlot, Qt
 from PyQt5.QtGui import QImage, QPixmap, QIcon, QKeySequence, QColor
-from PyQt5.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QShortcut, QFileDialog, QApplication
+from PyQt5.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QShortcut, QFileDialog, QApplication, QStackedLayout
 
 WINDOW_TITLE = '图像-色彩分析器'
 WINDOW_SIZE = (634, 640)
 IMAGE_SIZE = (610, 300)
 IMAGE_HEIGHT_MAX = 610
+INFO_SIZE = (106, 20)
+POINT_RADIUS = 10
 SCOPE_SIZE = (300, 300)
 SCOPE_RADIUS = int(SCOPE_SIZE[0] / 2)
 SCOPE_BAR = 20
@@ -25,12 +27,20 @@ class WindowWidget(QWidget):
 		super(WindowWidget, self).__init__()
 		self.label_image = None
 		self.image_image = None
+		self.pixmap = None
 		self.image_set = False
 		self.label_scope1 = None  # 波形示波器
+		self.info_scope1 = None
+		self.point_scope1 = None
+		self.stack_scope1 = None
 		self.image_scope1 = None
 		self.label_scope2 = None  # 矢量示波器
+		self.info_scope2 = None
+		self.point_scope2 = None
+		self.stack_scope2 = None
 		self.image_scope2 = None
 		self.settings = None
+		self.mouse_press = set()
 		self.setAcceptDrops(True)
 		self.init_ui()
 		self.reg_shortcut()
@@ -47,21 +57,55 @@ class WindowWidget(QWidget):
 		self.label_image.setStyleSheet('border: 1px solid #606060')
 		self.label_image.setPixmap(QPixmap(self.image_image))
 
-		self.label_scope1 = QLabel()
+		self.label_scope1 = QLabel(self)
 		self.label_scope1.setFixedSize(*SCOPE_SIZE)
 		self.label_scope1.setStyleSheet('border: 1px solid #606060')
 		self.label_scope1.setPixmap(QPixmap(self.image_scope1))
 
-		self.label_scope2 = QLabel()
+		self.label_scope2 = QLabel(self)
 		self.label_scope2.setFixedSize(*SCOPE_SIZE)
 		self.label_scope2.setStyleSheet('border: 1px solid #606060')
 		self.label_scope2.setPixmap(QPixmap(self.image_scope2))
 
+		# scope 1
+		widget_1 = QWidget(self)
+		widget_1.setAttribute(Qt.WA_TranslucentBackground)
+		self.info_scope1 = QLabel(widget_1)
+		self.info_scope1.setFixedSize(*INFO_SIZE)
+		self.info_scope1.move(1, 1)
+		self.info_scope1.setStyleSheet('background-color: #202020; font-family: arial; font-size: 10; color: #909090')
+		self.point_scope1 = QLabel(widget_1)
+		self.point_scope1.setFixedSize(POINT_RADIUS * 2, POINT_RADIUS * 2)
+		self.point_scope1.setAttribute(Qt.WA_TranslucentBackground)
+		self.point_scope1.setPixmap(QPixmap(QImage(res_path('res/point.png'))))
+		self.stack_scope1 = QStackedLayout()
+		self.stack_scope1.addWidget(self.label_scope1)
+		self.stack_scope1.addWidget(widget_1)
+		self.stack_scope1.setCurrentIndex(0)
+		self.stack_scope1.setStackingMode(QStackedLayout.StackAll)
+		# scope 2
+		widget_2 = QWidget(self)
+		widget_2.setAttribute(Qt.WA_TranslucentBackground)
+		self.info_scope2 = QLabel(widget_2)
+		self.info_scope2.setFixedSize(*INFO_SIZE)
+		self.info_scope2.move(1, 1)
+		self.info_scope2.setStyleSheet('background-color: #202020; font-family: arial; font-size: 10; color: #909090')
+		self.point_scope2 = QLabel(widget_2)
+		self.point_scope2.setFixedSize(POINT_RADIUS * 2, POINT_RADIUS * 2)
+		self.point_scope2.setAttribute(Qt.WA_TranslucentBackground)
+		self.point_scope2.setPixmap(QPixmap(QImage(res_path('res/point.png'))))
+		self.stack_scope2 = QStackedLayout()
+		self.stack_scope2.addWidget(self.label_scope2)
+		self.stack_scope2.addWidget(widget_2)
+		self.stack_scope2.setCurrentIndex(0)
+		self.stack_scope2.setStackingMode(QStackedLayout.StackAll)
+
+		# layout
 		layout = QVBoxLayout()
 		layout.addWidget(self.label_image)
 		layout_scopes = QHBoxLayout()
-		layout_scopes.addWidget(self.label_scope1)
-		layout_scopes.addWidget(self.label_scope2)
+		layout_scopes.addLayout(self.stack_scope1)
+		layout_scopes.addLayout(self.stack_scope2)
 		layout.addLayout(layout_scopes)
 
 		self.setLayout(layout)
@@ -100,6 +144,49 @@ class WindowWidget(QWidget):
 	def dropEvent(self, event):
 		path = event.mimeData().text().replace('file:///', '')
 		self.load_image(path)
+
+	# ↓↓ mouse event
+	def mousePressEvent(self, event):
+		if event.button() == 1:
+			self.mouse_press.add(1)
+			self.show_pix_info(event.x(), event.y())
+
+	def mouseReleaseEvent(self, event):
+		if event.button() == 1:
+			self.mouse_press.remove(1)
+			self.hide_pix_info()
+
+	def mouseMoveEvent(self, event):
+		if 1 in self.mouse_press:
+			self.show_pix_info(event.x(), event.y())
+
+	def show_pix_info(self, x, y):
+		if not self.image_set:
+			return
+		x = x - self.label_image.x() - int((IMAGE_SIZE[0] - self.pixmap.width()) / 2)
+		y = y - self.label_image.y()
+		if x < 0 or x >= self.pixmap.width():
+			return
+		if y < 0 or y >= self.pixmap.height():
+			return
+		color: QColor = self.pixmap.toImage().pixelColor(x, y)
+		r_v, g_v, b_v = color.red(), color.green(), color.blue()
+		h_v, s_v, l_v = color.hslHue(), color.hslSaturation(), color.lightness()
+		self.info_scope1.setText(' rgb: [{},{},{}]'.format(r_v, g_v, b_v))
+		self.info_scope2.setText(' hsl: [{},{},{}]'.format(h_v, s_v, l_v))
+		h_f, s_f, l_f = color.hueF(), color.saturationF(), color.lightnessF()
+		scope_1_w = SCOPE_SIZE[0]
+		scope_1_h = SCOPE_SIZE[1] - SCOPE_BAR
+		x_1, y_1 = hl_2_xy(scope_1_w, scope_1_h, h_f, l_f)
+		x_2, y_2 = hs_2_xy(SCOPE_RADIUS, h_f, s_f)
+		self.point_scope1.move(x_1 - POINT_RADIUS, scope_1_h - y_1 - POINT_RADIUS)
+		self.point_scope2.move(x_2 + SCOPE_RADIUS - POINT_RADIUS, y_2 + SCOPE_RADIUS - POINT_RADIUS)
+		self.stack_scope1.setCurrentIndex(1)
+		self.stack_scope2.setCurrentIndex(1)
+
+	def hide_pix_info(self):
+		self.stack_scope1.setCurrentIndex(0)
+		self.stack_scope2.setCurrentIndex(0)
 
 	# ↓↓ open event
 	@pyqtSlot()
@@ -171,7 +258,8 @@ class WindowWidget(QWidget):
 
 		self.image_set = True
 		self.resize_window()
-		self.label_image.setPixmap(QPixmap(self.image_image).scaled(IMAGE_SIZE[0], self.label_image.height(), Qt.KeepAspectRatio))
+		self.pixmap = QPixmap(self.image_image).scaled(IMAGE_SIZE[0], self.label_image.height(), Qt.KeepAspectRatio)
+		self.label_image.setPixmap(self.pixmap)
 		self.label_scope1.setPixmap(QPixmap(self.image_scope1))
 		self.label_scope2.setPixmap(QPixmap(self.image_scope2))
 
