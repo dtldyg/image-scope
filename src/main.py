@@ -106,7 +106,6 @@ class WindowWidget(QWidget):
 		self.scope_3d.addItem(txt_zero)
 		self.scope_3d.addItem(txt_x)
 		self.scope_3d.addItem(txt_y)
-		self.scope_3d.addItem(GLAxisItem())  # TODO remove
 		g_floor = GLGridItem()
 		g_floor.setSize(SCOPE_3D_X, SCOPE_3D_Y, 1)
 		self.scope_3d.addItem(g_floor)
