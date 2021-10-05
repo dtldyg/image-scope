@@ -57,6 +57,7 @@ class WindowWidget(QWidget):
 		self.scope_3d_points = {}
 		self.scope_3d_ball = {}
 		self.scope_3d_switch = {}
+		self.scope_3d_short_txt = None
 		self.settings = None
 		self.mouse_press = set()
 		self.setAcceptDrops(True)
@@ -104,7 +105,8 @@ class WindowWidget(QWidget):
 		self.scope_3d.addItem(GLTextItem(pos=(-5, -5, 0), text='o', font=QFont('arial', 10), color=QColor('#404040')))
 		self.scope_3d.addItem(GLTextItem(pos=(5, -5, 0), text='x', font=QFont('arial', 10), color=QColor('#404040')))
 		self.scope_3d.addItem(GLTextItem(pos=(-5, 5, 0), text='y', font=QFont('arial', 10), color=QColor('#404040')))
-		self.scope_3d.addItem(GLTextItem(pos=(-1.5, 0, SCOPE_3D_L / 2), text='ctrl + l/r/g/b', font=QFont('arial', 10), color=QColor('#404040')))
+		self.scope_3d_short_txt = GLTextItem(pos=(-1.5, 0, SCOPE_3D_L / 2), text='ctrl + l/r/g/b', font=QFont('arial', 10), color=QColor('#404040'))
+		self.scope_3d.addItem(self.scope_3d_short_txt)
 		g_floor = GLGridItem()
 		g_floor.setSize(SCOPE_3D_X, SCOPE_3D_Y, 1)
 		self.scope_3d.addItem(g_floor)
@@ -442,6 +444,9 @@ class WindowWidget(QWidget):
 		if 'b' in self.scope_3d_switch:
 			self.scope_3d_points['b'][1] = True
 			self.scope_3d.addItem(points_3d_b)
+		if self.scope_3d_short_txt is not None:
+			self.scope_3d.removeItem(self.scope_3d_short_txt)
+			self.scope_3d_short_txt = None
 
 		self.image_set = True
 		self.resize_window()
