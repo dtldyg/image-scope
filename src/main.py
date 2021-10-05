@@ -1,15 +1,19 @@
 # coding=utf-8
 
+import math
 import os
 import sys
-import math
 import time
+
+import numpy as np
+import pyqtgraph as pg
+import pyqtgraph.opengl as gl
 from PyQt5.QtCore import QStandardPaths, QSettings, QFile, pyqtSlot, Qt
-from PyQt5.QtGui import QImage, QPixmap, QIcon, QKeySequence, QColor
+from PyQt5.QtGui import QImage, QPixmap, QIcon, QKeySequence, QColor, QFont
 from PyQt5.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QShortcut, QFileDialog, QApplication, QStackedLayout
 
 WINDOW_TITLE = '图像-色彩分析器'
-WINDOW_SIZE = (634, 640)
+WINDOW_SIZE = (634, 950)
 IMAGE_SIZE = (610, 300)
 IMAGE_HEIGHT_MAX = 610
 INFO_SIZE = (150, 20)
@@ -17,7 +21,14 @@ POINT_RADIUS = 10
 SCOPE_SIZE = (300, 300)
 SCOPE_RADIUS = int(SCOPE_SIZE[0] / 2)
 SCOPE_BAR = 20
-ANALYSE_POINTS = 10000
+SCOPE_3D_SIZE = (604, 300)
+SCOPE_3D_MOVE = (17, 634)
+SCOPE_3D_X = 10
+SCOPE_3D_X_H = SCOPE_3D_X / 2
+SCOPE_3D_Y = 10
+SCOPE_3D_Y_H = SCOPE_3D_Y / 2
+SCOPE_3D_L = 4
+ANALYSE_POINTS = 20000
 SCALE_MAX = 6
 SCALE_STEP = 0.12
 
@@ -39,6 +50,9 @@ class WindowWidget(QWidget):
 		self.point_scope2 = None
 		self.stack_scope2 = None
 		self.image_scope2 = None
+		self.scope_3d = None
+		self.scope_3d_points = None
+		self.scope_3d_ball = None
 		self.settings = None
 		self.mouse_press = set()
 		self.setAcceptDrops(True)
@@ -76,6 +90,32 @@ class WindowWidget(QWidget):
 		layout_scopes.addLayout(self.stack_scope1)
 		layout_scopes.addLayout(self.stack_scope2)
 		layout.addLayout(layout_scopes)
+
+		self.scope_3d = gl.GLViewWidget(self)
+		self.scope_3d.opts['center'] = pg.Vector(0, 0, 1.2)
+		self.scope_3d.opts['distance'] = 18
+		self.scope_3d.opts['fov'] = 45
+		self.scope_3d.opts['elevation'] = 10
+		self.scope_3d.opts['azimuth'] = -90
+		txt_zero = gl.GLTextItem(pos=(-5, -5, 0), text='o', font=QFont('arial', 10), color=QColor('#404040'))
+		txt_x = gl.GLTextItem(pos=(5, -5, 0), text='x', font=QFont('arial', 10), color=QColor('#404040'))
+		txt_y = gl.GLTextItem(pos=(-5, 5, 0), text='y', font=QFont('arial', 10), color=QColor('#404040'))
+		self.scope_3d.addItem(txt_zero)
+		self.scope_3d.addItem(txt_x)
+		self.scope_3d.addItem(txt_y)
+		self.scope_3d.addItem(gl.GLAxisItem())  # TODO remove
+		g_floor = gl.GLGridItem()
+		g_floor.setSize(SCOPE_3D_X, SCOPE_3D_Y, 1)
+		self.scope_3d.addItem(g_floor)
+		g_light = gl.GLGridItem()
+		g_light.setSize(SCOPE_3D_X, SCOPE_3D_L, 1)
+		g_light.setSpacing(SCOPE_3D_X, 1, 1)
+		g_light.rotate(90, 1, 0, 0)
+		g_light.translate(0, SCOPE_3D_Y / 2, SCOPE_3D_L / 2)
+		self.scope_3d.addItem(g_light)
+		self.scope_3d.resize(*SCOPE_3D_SIZE)
+		self.scope_3d.move(*SCOPE_3D_MOVE)
+		self.scope_3d.show()
 
 		self.setLayout(layout)
 		self.setFixedSize(*WINDOW_SIZE)
@@ -142,6 +182,7 @@ class WindowWidget(QWidget):
 		if event.button() == 1:
 			self.mouse_press.remove(1)
 			self.hide_pix_info()
+			self.scope_3d.raise_()
 
 	def mouseMoveEvent(self, event):
 		if 1 in self.mouse_press:
@@ -168,10 +209,40 @@ class WindowWidget(QWidget):
 		x_2, y_2 = hs_2_xy(SCOPE_RADIUS, h_f, s_f)
 		self.point_scope1.move(x_1 - POINT_RADIUS, scope_1_h - y_1 - POINT_RADIUS)
 		self.point_scope2.move(x_2 + SCOPE_RADIUS - POINT_RADIUS, y_2 + SCOPE_RADIUS - POINT_RADIUS)
+
+		p = np.empty((4, 3))
+		c = np.empty((4, 4))
+		s = np.empty(1)
+		s[0] = 16
+		r_f, g_f, b_f = color.redF(), color.greenF(), color.blueF()
+		w = self.pixmap.width()
+		h = self.pixmap.height()
+		wh_max = max(w, h)
+		x_off = (wh_max - w) / 2 / wh_max
+		y_off = (wh_max - h) / 2 / wh_max
+		x_f = x / wh_max + x_off
+		y_f = (h - y - 1) / wh_max + y_off
+		p[0] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * l_f)
+		p[1] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * r_f)
+		p[2] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * g_f)
+		p[3] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * b_f)
+		c[0] = (1, 1, 1, 0.2)
+		c[1] = (1, 1, 1, 0.2)
+		c[2] = (1, 1, 1, 0.2)
+		c[3] = (1, 1, 1, 0.2)
+		ball_3d = gl.GLScatterPlotItem(pos=p, color=c, size=s)
+		if self.scope_3d_ball is not None:
+			self.scope_3d.removeItem(self.scope_3d_ball)
+		self.scope_3d_ball = ball_3d
+		self.scope_3d.addItem(ball_3d)
+
 		self.stack_scope1.setCurrentIndex(1)
 		self.stack_scope2.setCurrentIndex(1)
 
 	def hide_pix_info(self):
+		if self.scope_3d_ball is not None:
+			self.scope_3d.removeItem(self.scope_3d_ball)
+			self.scope_3d_ball = None
 		self.stack_scope1.setCurrentIndex(0)
 		self.stack_scope2.setCurrentIndex(0)
 
@@ -217,19 +288,24 @@ class WindowWidget(QWidget):
 		hl_w = SCOPE_SIZE[0]
 		hl_h = SCOPE_SIZE[1] - SCOPE_BAR
 		hs_points = {}
+		pl_points = []
+		w = self.image_image.width()
+		h = self.image_image.height()
 
 		# 分析像素
-		jump = max(1, round(math.sqrt(self.image_image.width() * self.image_image.height() / ANALYSE_POINTS)))
-		for x in range(0, self.image_image.width(), jump):
-			for y in range(0, self.image_image.height(), jump):
+		jump = max(1, round(math.sqrt(w * h / ANALYSE_POINTS)))
+		for x in range(0, w, jump):
+			for y in range(0, h, jump):
 				color: QColor = self.image_image.pixelColor(x, y)
 				h_f, s_f, l_f = color.hueF(), color.saturationF(), color.lightnessF()
+				r_f, g_f, b_f = color.redF(), color.greenF(), color.blueF()
 				x_hl, y_hl = hl_2_xy(hl_w, hl_h, h_f, l_f)
 				x_hs, y_hs = hs_2_xy(SCOPE_RADIUS, h_f, s_f)
 				if (x_hl, y_hl) not in hl_points:
 					hl_points[(x_hl, y_hl)] = color
 				if (x_hs, y_hs) not in hs_points:
 					hs_points[(x_hs, y_hs)] = color
+				pl_points.append((x, h - y - 1, l_f, r_f, g_f, b_f))
 
 		# 波形示波器（x-色相，y-亮度）
 		for pos, color in hl_points.items():
@@ -243,6 +319,32 @@ class WindowWidget(QWidget):
 			c.setHsv(color.hsvHue(), color.hsvSaturation(), 255)
 			self.image_scope2.setPixelColor(pos[0] + SCOPE_RADIUS, pos[1] + SCOPE_RADIUS, c)
 
+		# 分量图
+		p = np.empty((len(pl_points) * 4, 3))
+		c = np.empty((len(pl_points) * 4, 4))
+		s = np.empty(1)
+		s[0] = 1
+		wh_max = max(w, h)
+		x_off = (wh_max - w) / 2 / wh_max
+		y_off = (wh_max - h) / 2 / wh_max
+		for i in range(len(pl_points)):
+			x, y, l_f, r_f, g_f, b_f = pl_points[i]
+			x_f = x / wh_max + x_off
+			y_f = y / wh_max + y_off
+			p[i * 4 + 0] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * l_f)
+			p[i * 4 + 1] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * r_f)
+			p[i * 4 + 2] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * g_f)
+			p[i * 4 + 3] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * b_f)
+			c[i * 4 + 0] = (1, 1, 1, l_f * 0.5 + 0.5)
+			c[i * 4 + 1] = (1, 0, 0, r_f * 0.5 + 0.5)
+			c[i * 4 + 2] = (0, 1, 0, g_f * 0.5 + 0.5)
+			c[i * 4 + 3] = (0, 0, 1, b_f * 0.5 + 0.5)
+		points_3d = gl.GLScatterPlotItem(pos=p, color=c, size=s)
+		if self.scope_3d_points is not None:
+			self.scope_3d.removeItem(self.scope_3d_points)
+		self.scope_3d_points = points_3d
+		self.scope_3d.addItem(points_3d)
+
 		self.image_set = True
 		self.resize_window()
 		self.pixmap = QPixmap(self.image_image).scaled(IMAGE_SIZE[0], self.label_image.height(), Qt.KeepAspectRatio)
@@ -253,7 +355,9 @@ class WindowWidget(QWidget):
 	def resize_window(self):
 		image_h = int(IMAGE_SIZE[0] / self.image_image.width() * self.image_image.height())
 		image_h = min(IMAGE_HEIGHT_MAX, image_h)
-		self.setFixedSize(WINDOW_SIZE[0], image_h - IMAGE_SIZE[1] + WINDOW_SIZE[1])
+		new_h = image_h - IMAGE_SIZE[1] + WINDOW_SIZE[1]
+		self.setFixedSize(WINDOW_SIZE[0], new_h)
+		self.scope_3d.move(SCOPE_3D_MOVE[0], new_h - (WINDOW_SIZE[1] - SCOPE_3D_MOVE[1]))
 		self.label_image.setFixedSize(IMAGE_SIZE[0], image_h)
 
 
