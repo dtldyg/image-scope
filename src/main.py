@@ -6,7 +6,7 @@ import sys
 import time
 
 import numpy as np
-import pyqtgraph as pg
+from pyqtgraph import Vector
 import pyqtgraph.opengl as gl
 from PyQt5.QtCore import QStandardPaths, QSettings, QFile, pyqtSlot, Qt
 from PyQt5.QtGui import QImage, QPixmap, QIcon, QKeySequence, QColor, QFont
@@ -92,7 +92,7 @@ class WindowWidget(QWidget):
 		layout.addLayout(layout_scopes)
 
 		self.scope_3d = gl.GLViewWidget(self)
-		self.scope_3d.opts['center'] = pg.Vector(0, 0, 1.2)
+		self.scope_3d.opts['center'] = Vector(0, 0, 1.2)
 		self.scope_3d.opts['distance'] = 18
 		self.scope_3d.opts['fov'] = 45
 		self.scope_3d.opts['elevation'] = 10
