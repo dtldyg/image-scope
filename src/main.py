@@ -54,8 +54,9 @@ class WindowWidget(QWidget):
 		self.stack_scope2 = None
 		self.image_scope2 = None
 		self.scope_3d = None
-		self.scope_3d_points = None
-		self.scope_3d_ball = None
+		self.scope_3d_points = {}
+		self.scope_3d_ball = {}
+		self.scope_3d_switch = {}
 		self.settings = None
 		self.mouse_press = set()
 		self.setAcceptDrops(True)
@@ -100,12 +101,10 @@ class WindowWidget(QWidget):
 		self.scope_3d.opts['fov'] = 45
 		self.scope_3d.opts['elevation'] = 10
 		self.scope_3d.opts['azimuth'] = -90
-		txt_zero = GLTextItem(pos=(-5, -5, 0), text='o', font=QFont('arial', 10), color=QColor('#404040'))
-		txt_x = GLTextItem(pos=(5, -5, 0), text='x', font=QFont('arial', 10), color=QColor('#404040'))
-		txt_y = GLTextItem(pos=(-5, 5, 0), text='y', font=QFont('arial', 10), color=QColor('#404040'))
-		self.scope_3d.addItem(txt_zero)
-		self.scope_3d.addItem(txt_x)
-		self.scope_3d.addItem(txt_y)
+		self.scope_3d.addItem(GLTextItem(pos=(-5, -5, 0), text='o', font=QFont('arial', 10), color=QColor('#404040')))
+		self.scope_3d.addItem(GLTextItem(pos=(5, -5, 0), text='x', font=QFont('arial', 10), color=QColor('#404040')))
+		self.scope_3d.addItem(GLTextItem(pos=(-5, 5, 0), text='y', font=QFont('arial', 10), color=QColor('#404040')))
+		self.scope_3d.addItem(GLTextItem(pos=(-1.5, 0, SCOPE_3D_L / 2), text='ctrl + l/r/g/b', font=QFont('arial', 10), color=QColor('#404040')))
 		g_floor = GLGridItem()
 		g_floor.setSize(SCOPE_3D_X, SCOPE_3D_Y, 1)
 		self.scope_3d.addItem(g_floor)
@@ -118,6 +117,10 @@ class WindowWidget(QWidget):
 		self.scope_3d.resize(*SCOPE_3D_SIZE)
 		self.scope_3d.move(*SCOPE_3D_MOVE)
 		self.scope_3d.show()
+		self.scope_3d_switch['l'] = True
+		self.scope_3d_switch['r'] = True
+		self.scope_3d_switch['g'] = True
+		self.scope_3d_switch['b'] = True
 
 		self.setLayout(layout)
 		self.setFixedSize(*WINDOW_SIZE)
@@ -149,12 +152,20 @@ class WindowWidget(QWidget):
 
 	# ↓↓ reg shortcut
 	def reg_shortcut(self):
-		shortcut_open = QShortcut(QKeySequence("Ctrl+O"), self)
+		shortcut_open = QShortcut(QKeySequence('Ctrl+O'), self)
 		shortcut_open.activated.connect(self.on_open)
-		shortcut_paste = QShortcut(QKeySequence("Ctrl+V"), self)
+		shortcut_paste = QShortcut(QKeySequence('Ctrl+V'), self)
 		shortcut_paste.activated.connect(self.paste_image)
-		shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
+		shortcut_save = QShortcut(QKeySequence('Ctrl+S'), self)
 		shortcut_save.activated.connect(self.save_window)
+		scope_3d_switch_l = QShortcut(QKeySequence('Ctrl+L'), self)
+		scope_3d_switch_l.activated.connect(self.scope_3d_switch_l)
+		scope_3d_switch_r = QShortcut(QKeySequence('Ctrl+R'), self)
+		scope_3d_switch_r.activated.connect(self.scope_3d_switch_r)
+		scope_3d_switch_g = QShortcut(QKeySequence('Ctrl+G'), self)
+		scope_3d_switch_g.activated.connect(self.scope_3d_switch_g)
+		scope_3d_switch_b = QShortcut(QKeySequence('Ctrl+B'), self)
+		scope_3d_switch_b.activated.connect(self.scope_3d_switch_b)
 
 	# ↓↓ init setting
 	def init_setting(self):
@@ -212,8 +223,14 @@ class WindowWidget(QWidget):
 		self.point_scope1.move(x_1 - POINT_RADIUS, scope_1_h - y_1 - POINT_RADIUS)
 		self.point_scope2.move(x_2 + SCOPE_RADIUS - POINT_RADIUS, y_2 + SCOPE_RADIUS - POINT_RADIUS)
 
-		p = np.empty((4, 3))
-		c = np.empty((4, 4))
+		p_l = np.empty((1, 3))
+		c_l = np.empty((1, 4))
+		p_r = np.empty((1, 3))
+		c_r = np.empty((1, 4))
+		p_g = np.empty((1, 3))
+		c_g = np.empty((1, 4))
+		p_b = np.empty((1, 3))
+		c_b = np.empty((1, 4))
 		s = np.empty(1)
 		s[0] = 16
 		r_f, g_f, b_f = color.redF(), color.greenF(), color.blueF()
@@ -224,27 +241,45 @@ class WindowWidget(QWidget):
 		y_off = (wh_max - h) / 2 / wh_max
 		x_f = x / wh_max + x_off
 		y_f = (h - y - 1) / wh_max + y_off
-		p[0] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * l_f)
-		p[1] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * r_f)
-		p[2] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * g_f)
-		p[3] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * b_f)
-		c[0] = (1, 1, 1, 0.2)
-		c[1] = (1, 1, 1, 0.2)
-		c[2] = (1, 1, 1, 0.2)
-		c[3] = (1, 1, 1, 0.2)
-		ball_3d = GLScatterPlotItem(pos=p, color=c, size=s)
-		if self.scope_3d_ball is not None:
-			self.scope_3d.removeItem(self.scope_3d_ball)
-		self.scope_3d_ball = ball_3d
-		self.scope_3d.addItem(ball_3d)
-
+		p_l[0] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * l_f)
+		p_r[0] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * r_f)
+		p_g[0] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * g_f)
+		p_b[0] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * b_f)
+		c_l[0] = (1, 1, 1, 0.2)
+		c_r[0] = (1, 1, 1, 0.2)
+		c_g[0] = (1, 1, 1, 0.2)
+		c_b[0] = (1, 1, 1, 0.2)
+		ball_3d_l = GLScatterPlotItem(pos=p_l, color=c_l, size=s)
+		ball_3d_r = GLScatterPlotItem(pos=p_r, color=c_r, size=s)
+		ball_3d_g = GLScatterPlotItem(pos=p_g, color=c_g, size=s)
+		ball_3d_b = GLScatterPlotItem(pos=p_b, color=c_b, size=s)
+		for ball in self.scope_3d_ball.values():
+			if ball[1]:
+				self.scope_3d.removeItem(ball[0])
+		self.scope_3d_ball['l'] = [ball_3d_l, False]
+		self.scope_3d_ball['r'] = [ball_3d_r, False]
+		self.scope_3d_ball['g'] = [ball_3d_g, False]
+		self.scope_3d_ball['b'] = [ball_3d_b, False]
+		if 'l' in self.scope_3d_switch:
+			self.scope_3d_ball['l'][1] = True
+			self.scope_3d.addItem(ball_3d_l)
+		if 'r' in self.scope_3d_switch:
+			self.scope_3d_ball['r'][1] = True
+			self.scope_3d.addItem(ball_3d_r)
+		if 'g' in self.scope_3d_switch:
+			self.scope_3d_ball['g'][1] = True
+			self.scope_3d.addItem(ball_3d_g)
+		if 'b' in self.scope_3d_switch:
+			self.scope_3d_ball['b'][1] = True
+			self.scope_3d.addItem(ball_3d_b)
 		self.stack_scope1.setCurrentIndex(1)
 		self.stack_scope2.setCurrentIndex(1)
 
 	def hide_pix_info(self):
-		if self.scope_3d_ball is not None:
-			self.scope_3d.removeItem(self.scope_3d_ball)
-			self.scope_3d_ball = None
+		for ball in self.scope_3d_ball.values():
+			if ball[1]:
+				self.scope_3d.removeItem(ball[0])
+		self.scope_3d_ball = {}
 		self.stack_scope1.setCurrentIndex(0)
 		self.stack_scope2.setCurrentIndex(0)
 
@@ -277,6 +312,43 @@ class WindowWidget(QWidget):
 		file = QFileDialog.getSaveFileName(self, '保存示波器图片', last_path + '/' + default_name, '*.jpg')
 		self.settings.setValue('save_path', os.path.dirname(file[0]))
 		screenshot.save(QFile(file[0]))
+
+	# ↓↓ switch
+	@pyqtSlot()
+	def scope_3d_switch_l(self):
+		self.on_scope_3d_switch('l')
+
+	@pyqtSlot()
+	def scope_3d_switch_r(self):
+		self.on_scope_3d_switch('r')
+
+	@pyqtSlot()
+	def scope_3d_switch_g(self):
+		self.on_scope_3d_switch('g')
+
+	@pyqtSlot()
+	def scope_3d_switch_b(self):
+		self.on_scope_3d_switch('b')
+
+	def on_scope_3d_switch(self, key):
+		if not self.image_set:
+			return
+		if key in self.scope_3d_switch:
+			if self.scope_3d_points[key][1]:
+				self.scope_3d_points[key][1] = False
+				self.scope_3d.removeItem(self.scope_3d_points[key][0])
+			if key in self.scope_3d_ball and self.scope_3d_ball[key][1]:
+				self.scope_3d_ball[key][1] = False
+				self.scope_3d.removeItem(self.scope_3d_ball[key][0])
+			del self.scope_3d_switch[key]
+		else:
+			if not self.scope_3d_points[key][1]:
+				self.scope_3d_points[key][1] = True
+				self.scope_3d.addItem(self.scope_3d_points[key][0])
+			if key in self.scope_3d_ball and not self.scope_3d_ball[key][1]:
+				self.scope_3d_ball[key][1] = True
+				self.scope_3d.addItem(self.scope_3d_ball[key][0])
+			self.scope_3d_switch[key] = True
 
 	# ↓↓ new image
 	def load_image(self, path):
@@ -322,8 +394,14 @@ class WindowWidget(QWidget):
 			self.image_scope2.setPixelColor(pos[0] + SCOPE_RADIUS, pos[1] + SCOPE_RADIUS, c)
 
 		# 分量图
-		p = np.empty((len(pl_points) * 4, 3))
-		c = np.empty((len(pl_points) * 4, 4))
+		p_l = np.empty((len(pl_points), 3))
+		c_l = np.empty((len(pl_points), 4))
+		p_r = np.empty((len(pl_points), 3))
+		c_r = np.empty((len(pl_points), 4))
+		p_g = np.empty((len(pl_points), 3))
+		c_g = np.empty((len(pl_points), 4))
+		p_b = np.empty((len(pl_points), 3))
+		c_b = np.empty((len(pl_points), 4))
 		s = np.empty(1)
 		s[0] = 1
 		wh_max = max(w, h)
@@ -333,19 +411,37 @@ class WindowWidget(QWidget):
 			x, y, l_f, r_f, g_f, b_f = pl_points[i]
 			x_f = x / wh_max + x_off
 			y_f = y / wh_max + y_off
-			p[i * 4 + 0] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * l_f)
-			p[i * 4 + 1] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * r_f)
-			p[i * 4 + 2] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * g_f)
-			p[i * 4 + 3] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * b_f)
-			c[i * 4 + 0] = (1, 1, 1, l_f * 0.5 + 0.5)
-			c[i * 4 + 1] = (1, 0, 0, r_f * 0.5 + 0.5)
-			c[i * 4 + 2] = (0, 1, 0, g_f * 0.5 + 0.5)
-			c[i * 4 + 3] = (0, 0, 1, b_f * 0.5 + 0.5)
-		points_3d = GLScatterPlotItem(pos=p, color=c, size=s)
-		if self.scope_3d_points is not None:
-			self.scope_3d.removeItem(self.scope_3d_points)
-		self.scope_3d_points = points_3d
-		self.scope_3d.addItem(points_3d)
+			p_l[i] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * l_f)
+			p_r[i] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * r_f)
+			p_g[i] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * g_f)
+			p_b[i] = (SCOPE_3D_X * x_f - SCOPE_3D_X_H, SCOPE_3D_Y * y_f - SCOPE_3D_Y_H, SCOPE_3D_L * b_f)
+			c_l[i] = (1, 1, 1, l_f * 0.5 + 0.5)
+			c_r[i] = (1, 0, 0, r_f * 0.5 + 0.5)
+			c_g[i] = (0, 1, 0, g_f * 0.5 + 0.5)
+			c_b[i] = (0, 0, 1, b_f * 0.5 + 0.5)
+		points_3d_l = GLScatterPlotItem(pos=p_l, color=c_l, size=s)
+		points_3d_r = GLScatterPlotItem(pos=p_r, color=c_r, size=s)
+		points_3d_g = GLScatterPlotItem(pos=p_g, color=c_g, size=s)
+		points_3d_b = GLScatterPlotItem(pos=p_b, color=c_b, size=s)
+		for points in self.scope_3d_points.values():
+			if points[1]:
+				self.scope_3d.removeItem(points[0])
+		self.scope_3d_points['l'] = [points_3d_l, False]
+		self.scope_3d_points['r'] = [points_3d_r, False]
+		self.scope_3d_points['g'] = [points_3d_g, False]
+		self.scope_3d_points['b'] = [points_3d_b, False]
+		if 'l' in self.scope_3d_switch:
+			self.scope_3d_points['l'][1] = True
+			self.scope_3d.addItem(points_3d_l)
+		if 'r' in self.scope_3d_switch:
+			self.scope_3d_points['r'][1] = True
+			self.scope_3d.addItem(points_3d_r)
+		if 'g' in self.scope_3d_switch:
+			self.scope_3d_points['g'][1] = True
+			self.scope_3d.addItem(points_3d_g)
+		if 'b' in self.scope_3d_switch:
+			self.scope_3d_points['b'][1] = True
+			self.scope_3d.addItem(points_3d_b)
 
 		self.image_set = True
 		self.resize_window()
