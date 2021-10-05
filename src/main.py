@@ -5,9 +5,12 @@ import os
 import sys
 import time
 
+import pyqtgraph.graphicsItems.ViewBox.axisCtrlTemplate_pyqt5
+import pyqtgraph.graphicsItems.PlotItem.plotConfigTemplate_pyqt5
+import pyqtgraph.imageview.ImageViewTemplate_pyqt5
 import numpy as np
 from pyqtgraph import Vector
-import pyqtgraph.opengl as gl
+from pyqtgraph.opengl import GLViewWidget, GLTextItem, GLAxisItem, GLGridItem, GLScatterPlotItem
 from PyQt5.QtCore import QStandardPaths, QSettings, QFile, pyqtSlot, Qt
 from PyQt5.QtGui import QImage, QPixmap, QIcon, QKeySequence, QColor, QFont
 from PyQt5.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QShortcut, QFileDialog, QApplication, QStackedLayout
@@ -91,23 +94,23 @@ class WindowWidget(QWidget):
 		layout_scopes.addLayout(self.stack_scope2)
 		layout.addLayout(layout_scopes)
 
-		self.scope_3d = gl.GLViewWidget(self)
+		self.scope_3d = GLViewWidget(self)
 		self.scope_3d.opts['center'] = Vector(0, 0, 1.2)
 		self.scope_3d.opts['distance'] = 18
 		self.scope_3d.opts['fov'] = 45
 		self.scope_3d.opts['elevation'] = 10
 		self.scope_3d.opts['azimuth'] = -90
-		txt_zero = gl.GLTextItem(pos=(-5, -5, 0), text='o', font=QFont('arial', 10), color=QColor('#404040'))
-		txt_x = gl.GLTextItem(pos=(5, -5, 0), text='x', font=QFont('arial', 10), color=QColor('#404040'))
-		txt_y = gl.GLTextItem(pos=(-5, 5, 0), text='y', font=QFont('arial', 10), color=QColor('#404040'))
+		txt_zero = GLTextItem(pos=(-5, -5, 0), text='o', font=QFont('arial', 10), color=QColor('#404040'))
+		txt_x = GLTextItem(pos=(5, -5, 0), text='x', font=QFont('arial', 10), color=QColor('#404040'))
+		txt_y = GLTextItem(pos=(-5, 5, 0), text='y', font=QFont('arial', 10), color=QColor('#404040'))
 		self.scope_3d.addItem(txt_zero)
 		self.scope_3d.addItem(txt_x)
 		self.scope_3d.addItem(txt_y)
-		self.scope_3d.addItem(gl.GLAxisItem())  # TODO remove
-		g_floor = gl.GLGridItem()
+		self.scope_3d.addItem(GLAxisItem())  # TODO remove
+		g_floor = GLGridItem()
 		g_floor.setSize(SCOPE_3D_X, SCOPE_3D_Y, 1)
 		self.scope_3d.addItem(g_floor)
-		g_light = gl.GLGridItem()
+		g_light = GLGridItem()
 		g_light.setSize(SCOPE_3D_X, SCOPE_3D_L, 1)
 		g_light.setSpacing(SCOPE_3D_X, 1, 1)
 		g_light.rotate(90, 1, 0, 0)
@@ -230,7 +233,7 @@ class WindowWidget(QWidget):
 		c[1] = (1, 1, 1, 0.2)
 		c[2] = (1, 1, 1, 0.2)
 		c[3] = (1, 1, 1, 0.2)
-		ball_3d = gl.GLScatterPlotItem(pos=p, color=c, size=s)
+		ball_3d = GLScatterPlotItem(pos=p, color=c, size=s)
 		if self.scope_3d_ball is not None:
 			self.scope_3d.removeItem(self.scope_3d_ball)
 		self.scope_3d_ball = ball_3d
@@ -339,7 +342,7 @@ class WindowWidget(QWidget):
 			c[i * 4 + 1] = (1, 0, 0, r_f * 0.5 + 0.5)
 			c[i * 4 + 2] = (0, 1, 0, g_f * 0.5 + 0.5)
 			c[i * 4 + 3] = (0, 0, 1, b_f * 0.5 + 0.5)
-		points_3d = gl.GLScatterPlotItem(pos=p, color=c, size=s)
+		points_3d = GLScatterPlotItem(pos=p, color=c, size=s)
 		if self.scope_3d_points is not None:
 			self.scope_3d.removeItem(self.scope_3d_points)
 		self.scope_3d_points = points_3d
